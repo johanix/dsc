@@ -36,6 +36,8 @@
 
 #include "config.h"
 
+#include "johani.h"
+
 #include "xmalloc.h"
 #include "pcap.h"
 #include "syslog_debug.h"
@@ -267,18 +269,26 @@ dump_report(md_array_printer* printer)
     char  errbuf[512];
     int   fd;
     FILE* fp;
-    char  fname[128];
+    char  fname[192];
     char  tname[256];
 
     if (disk_is_full()) {
         dsyslogf(LOG_NOTICE, "Not enough free disk space to write %s files", printer->format);
+        printf("Not enough free disk space to write %s files", printer->format);
         return 1;
     }
-    if (input_mode == INPUT_DNSTAP)
+
+    if (input_mode == INPUT_DNSTAP) {
         snprintf(fname, sizeof(fname), "%d.dscdata.%s", dnstap_finish_time(), printer->extension);
-    else
-        snprintf(fname, sizeof(fname), "%d.dscdata.%s", Pcap_finish_time(), printer->extension);
+    } else {
+	/* johani */
+        /* printf("dump_report(INPUT_PCAP): outfile: %s\n", outfile); */
+        /* snprintf(fname, sizeof(fname), "%d.dscdata.%s", Pcap_finish_time(), printer->extension); */
+        snprintf(fname, sizeof(fname), "%s.dsc.%s", outfile, printer->extension);
+	printf("Outfile: %s/%s\n", destdir, fname);
+    }
     snprintf(tname, sizeof(tname), "%s.XXXXXXXXX", fname);
+
     fd = mkstemp(tname);
     if (fd < 0) {
         dsyslogf(LOG_ERR, "%s: %s", tname, dsc_strerror(errno, errbuf, sizeof(errbuf)));
@@ -308,9 +318,11 @@ dump_report(md_array_printer* printer)
     }
     fclose(fp);
     dfprintf(0, "renaming to %s", fname);
+    printf("renaming to %s", fname);
 
     if (rename(tname, fname)) {
         dsyslogf(LOG_ERR, "unable to move report from %s to %s: %s", tname, fname, dsc_strerror(errno, errbuf, sizeof(errbuf)));
+        printf("unable to move report from %s to %s: %s", tname, fname, dsc_strerror(errno, errbuf, sizeof(errbuf)));
     }
     return 0;
 }
@@ -456,6 +468,7 @@ int main(int argc, char* argv[])
     if (parse_conf(argv[0])) {
         return 1;
     }
+
     dns_message_indexers_init();
     if (!output_format_xml && !output_format_json) {
         output_format_xml = 1;

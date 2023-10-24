@@ -38,6 +38,9 @@
 #define _WITH_GETLINE
 #endif
 
+/* #include "johani.h" */
+#include <libgen.h>
+
 #include "parse_conf.h"
 #include "config_hooks.h"
 #include "dns_message.h"
@@ -53,6 +56,7 @@
 #endif
 
 #include <errno.h>
+
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -89,6 +93,11 @@ struct conf_token_syntax {
     int (*parse)(const conf_token_t* tokens);
     const conf_token_type_t syntax[PARSE_MAX_ARGS];
 };
+
+/* johani */
+char outfile[256];
+char destdir[256];
+char* bname;
 
 int parse_conf_token(char** conf, size_t* length, conf_token_t* token)
 {
@@ -147,10 +156,13 @@ int parse_conf_token(char** conf, size_t* length, conf_token_t* token)
     return PARSE_CONF_ERROR;
 }
 
+
+
 int parse_conf_interface(const conf_token_t* tokens)
 {
     char* interface = strndup(tokens[1].token, tokens[1].length);
     int   ret;
+    int   len;
 
     if (!interface) {
         errno = ENOMEM;
@@ -158,6 +170,15 @@ int parse_conf_interface(const conf_token_t* tokens)
     }
 
     ret = open_interface(interface);
+
+    /* johani */
+    printf("Infile: %s\n", interface);
+    len = strlen(interface);
+    interface[len-5] = '\0';
+    bname = basename(interface);
+    snprintf(outfile, sizeof(outfile), "%s", bname);
+    /* printf("Outfile: %s\n", outfile); */
+
     free(interface);
     return ret == 1 ? 0 : 1;
 }
@@ -173,6 +194,7 @@ int parse_conf_run_dir(const conf_token_t* tokens)
     }
 
     ret = set_run_dir(run_dir);
+    snprintf(destdir, sizeof(destdir), "%s", run_dir);
     free(run_dir);
     return ret == 1 ? 0 : 1;
 }
@@ -1234,6 +1256,7 @@ int parse_conf(const char* file)
     if (!(fp = fopen(file, "r"))) {
         return 1;
     }
+
     while ((ret2 = getline(&buffer, &bufsize, fp)) > 0 && buffer) {
         memset(tokens, 0, sizeof(conf_token_t) * PARSE_MAX_ARGS);
         line++;
@@ -1302,6 +1325,7 @@ int parse_conf(const char* file)
             return 1;
         }
     }
+
     if (ret2 < 0) {
         long pos;
         char errbuf[512];
